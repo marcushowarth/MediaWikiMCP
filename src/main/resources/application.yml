@@ -1,0 +1,12 @@
+quarkus:
+  application:
+    name: mediawiki-mcp
+  http:
+    port: 8081
+  smallrye-health:
+    root-path: /health
+
+mediawiki:
+  url: ${MEDIAWIKI_URL:https://wiki.howarth.eu/api.php}
+  bot-user: ${MEDIAWIKI_BOT_USER:}
+  bot-password: ${MEDIAWIKI_BOT_PASSWORD:}
