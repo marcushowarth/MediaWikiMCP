@@ -3,6 +3,7 @@ quarkus:
     name: mediawiki-mcp
   http:
     port: 8081
+    test-port: 0
   smallrye-health:
     root-path: /health
 
