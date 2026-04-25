@@ -53,7 +53,13 @@ public class PageTools {
                 "titles", title,
                 "format", "json"
         ));
+        if (resp.has("error")) {
+            return "Error: " + resp.at("/error/info").asText();
+        }
         JsonNode pages = resp.at("/query/pages");
+        if (!pages.elements().hasNext()) {
+            return "Page not found: " + title;
+        }
         JsonNode page = pages.elements().next();
         if (page.has("missing")) {
             return "Page not found: " + title;
