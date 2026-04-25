@@ -4,6 +4,7 @@ quarkus:
   http:
     port: 8081
     test-port: 0
+    root-path: /mediawiki
   smallrye-health:
     root-path: /health
 
