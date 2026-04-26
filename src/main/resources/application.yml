@@ -1,9 +1,6 @@
 quarkus:
   application:
     name: mediawiki-mcp
-  mcp:
-    server:
-      auto-ping-interval: 2M
   http:
     port: 8081
     test-port: 0
