@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_REGION: eu-west-2
-  ECR_REGISTRY: 057133611121.dkr.ecr.eu-west-2.amazonaws.com
+  ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
   ECR_REPOSITORY: mediawiki-mcp
   IMAGE_TAG: ${{ github.sha }}
 
@@ -56,8 +56,8 @@ jobs:
           ssh -i /tmp/deploy_key \
             -o StrictHostKeyChecking=no \
             ec2-user@${{ secrets.EC2_HOST }} \
-            "aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 057133611121.dkr.ecr.eu-west-2.amazonaws.com
-            docker pull 057133611121.dkr.ecr.eu-west-2.amazonaws.com/mediawiki-mcp:latest
+            "aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
+            docker pull ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/mediawiki-mcp:latest
             docker stop mediawiki-mcp || true
             docker rm mediawiki-mcp || true
             docker run -d \
@@ -66,5 +66,5 @@ jobs:
               -p 8081:8081 \
               -e MEDIAWIKI_BOT_USER='${{ secrets.MEDIAWIKI_BOT_USER }}' \
               -e MEDIAWIKI_BOT_PASSWORD='${{ secrets.MEDIAWIKI_BOT_PASSWORD }}' \
-              057133611121.dkr.ecr.eu-west-2.amazonaws.com/mediawiki-mcp:latest"
+              ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com/mediawiki-mcp:latest"
           rm -f /tmp/deploy_key
