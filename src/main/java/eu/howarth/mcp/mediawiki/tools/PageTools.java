@@ -101,7 +101,7 @@ public class PageTools {
         return "Appended to: " + title + " (revid " + resp.at("/edit/newrevid").asText() + ")";
     }
 
-    @Tool(description = "Edit a section of a MediaWiki page by section number (0 = lead section)")
+    @Tool(description = "Overwrite a section of a MediaWiki page by section number (0 = lead section). WARNING: this replaces the entire section content. Always read the section first with getPage or getSections before calling this.")
     public String editSection(
             @ToolArg(description = "Page title") String title,
             @ToolArg(description = "Section number (0 for lead section)") String section,
