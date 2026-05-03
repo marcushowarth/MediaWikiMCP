@@ -101,6 +101,88 @@ public class PageTools {
         return "Appended to: " + title + " (revid " + resp.at("/edit/newrevid").asText() + ")";
     }
 
+    @Tool(description = "Get the wikitext of a single section by index. Use getSections to find index numbers. Cheaper than getPage on large pages.")
+    public String getSection(
+            @ToolArg(description = "Page title") String title,
+            @ToolArg(description = "Section number (0 for lead section)") String section) {
+        JsonNode resp = wiki.get(Map.of(
+                "action", "parse",
+                "page", title,
+                "section", section,
+                "prop", "wikitext",
+                "format", "json"
+        ));
+        if (resp.has("error")) {
+            return "Error: " + resp.at("/error/info").asText();
+        }
+        return resp.at("/parse/wikitext/*").asText();
+    }
+
+    @Tool(description = "Append content to a section without overwriting existing content. Safe for journal-style additions. Reads the section first then writes back the combined content.")
+    public String appendToSection(
+            @ToolArg(description = "Page title") String title,
+            @ToolArg(description = "Section number (0 for lead section)") String section,
+            @ToolArg(description = "Wikitext to append to the section") String content,
+            @ToolArg(description = "Edit summary") String summary) {
+        JsonNode readResp = wiki.get(Map.of(
+                "action", "parse",
+                "page", title,
+                "section", section,
+                "prop", "wikitext",
+                "format", "json"
+        ));
+        if (readResp.has("error")) {
+            return "Error reading section: " + readResp.at("/error/info").asText();
+        }
+        String existing = readResp.at("/parse/wikitext/*").asText();
+        JsonNode writeResp = wiki.edit(Map.of(
+                "action", "edit",
+                "title", title,
+                "section", section,
+                "text", existing + "\n" + content,
+                "summary", summary
+        ));
+        if (writeResp.has("error")) {
+            return "Error writing section: " + writeResp.at("/error/info").asText();
+        }
+        return "Appended to section " + section + " of: " + title + " (revid " + writeResp.at("/edit/newrevid").asText() + ")";
+    }
+
+    @Tool(description = "Get revision history of a MediaWiki page. Returns recent edits with revision IDs, timestamps, editors and summaries.")
+    public String getPageHistory(
+            @ToolArg(description = "Page title") String title,
+            @ToolArg(description = "Number of revisions to return (1–50)") int limit) {
+        JsonNode resp = wiki.get(Map.of(
+                "action", "query",
+                "prop", "revisions",
+                "titles", title,
+                "rvprop", "ids|timestamp|user|comment|size",
+                "rvlimit", String.valueOf(limit),
+                "format", "json"
+        ));
+        if (resp.has("error")) {
+            return "Error: " + resp.at("/error/info").asText();
+        }
+        JsonNode pages = resp.at("/query/pages");
+        if (!pages.elements().hasNext()) {
+            return "Page not found: " + title;
+        }
+        JsonNode page = pages.elements().next();
+        if (page.has("missing")) {
+            return "Page not found: " + title;
+        }
+        List<String> lines = new ArrayList<>();
+        lines.add("History of [[" + title + "]]:");
+        page.at("/revisions").forEach(r -> lines.add(
+                r.at("/timestamp").asText()
+                + " | revid=" + r.at("/revid").asText()
+                + " | " + r.at("/user").asText()
+                + " | " + r.at("/comment").asText()
+                + " | size=" + r.at("/size").asText()
+        ));
+        return String.join("\n", lines);
+    }
+
     @Tool(description = "Overwrite a section of a MediaWiki page by section number (0 = lead section). WARNING: this replaces the entire section content. Always read the section first with getPage or getSections before calling this.")
     public String editSection(
             @ToolArg(description = "Page title") String title,
