@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class MediaWikiClient {
+public class MediaWikiClient implements WikiClient {
 
     private static final Logger LOG = Logger.getLogger(MediaWikiClient.class);
 

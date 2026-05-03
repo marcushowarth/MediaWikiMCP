@@ -1,7 +1,7 @@
 package eu.howarth.mcp.mediawiki.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import eu.howarth.mcp.mediawiki.client.MediaWikiClient;
+import eu.howarth.mcp.mediawiki.client.WikiClient;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,7 +16,7 @@ import java.util.Optional;
 public class SearchTools {
 
     @Inject
-    MediaWikiClient wiki;
+    WikiClient wiki;
 
     @Tool(description = "Search MediaWiki pages by keyword. Returns page titles and snippets.")
     public String search(

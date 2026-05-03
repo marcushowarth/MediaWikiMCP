@@ -1,7 +1,7 @@
 package eu.howarth.mcp.mediawiki.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import eu.howarth.mcp.mediawiki.client.MediaWikiClient;
+import eu.howarth.mcp.mediawiki.client.WikiClient;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -15,7 +15,7 @@ import java.util.Map;
 public class PageTools {
 
     @Inject
-    MediaWikiClient wiki;
+    WikiClient wiki;
 
     @Tool(description = "List all sections of a MediaWiki page with their index numbers, levels and titles. Use the index with editSection.")
     public String getSections(@ToolArg(description = "Page title") String title) {
