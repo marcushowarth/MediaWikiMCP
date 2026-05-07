@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @ApplicationScoped
 public class PageTools {
@@ -70,18 +71,20 @@ public class PageTools {
     @Tool(description = "Create or overwrite a MediaWiki page. Provide content directly, or use templateTitle to preload an existing page as the base. If both are given, template content is prepended before content.")
     public String createPage(
             @ToolArg(description = "Page title") String title,
-            @ToolArg(description = "Wikitext content for the page. Required if templateTitle is not given.") String content,
+            @ToolArg(description = "Wikitext content for the page. Required if templateTitle is not given.") Optional<String> content,
             @ToolArg(description = "Edit summary") String summary,
-            @ToolArg(description = "Title of an existing page to use as preload template. Its wikitext becomes the base content. Use prefixSearch with 'Template:' to discover available templates. Omit if providing content directly.") String templateTitle) {
+            @ToolArg(description = "Title of an existing page to use as preload template. Its wikitext becomes the base content. Use prefixSearch with 'Template:' to discover available templates. Omit if providing content directly.") Optional<String> templateTitle) {
+        String rawContent = content.filter(s -> !s.isBlank()).orElse(null);
+        String rawTemplate = templateTitle.filter(s -> !s.isBlank()).orElse(null);
         String pageContent;
-        if (templateTitle != null && !templateTitle.isBlank()) {
-            String templateContent = fetchPageContent(templateTitle);
+        if (rawTemplate != null) {
+            String templateContent = fetchPageContent(rawTemplate);
             if (templateContent.startsWith("Error:") || templateContent.startsWith("Page not found:")) {
-                return "Cannot load template '" + templateTitle + "': " + templateContent;
+                return "Cannot load template '" + rawTemplate + "': " + templateContent;
             }
-            pageContent = (content != null && !content.isBlank()) ? templateContent + "\n" + content : templateContent;
-        } else if (content != null && !content.isBlank()) {
-            pageContent = content;
+            pageContent = rawContent != null ? templateContent + "\n" + rawContent : templateContent;
+        } else if (rawContent != null) {
+            pageContent = rawContent;
         } else {
             return "Error: provide either content or templateTitle";
         }
