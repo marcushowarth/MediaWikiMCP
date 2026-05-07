@@ -72,7 +72,7 @@ public class PageTools {
             @ToolArg(description = "Page title") String title,
             @ToolArg(description = "Wikitext content for the page. Required if templateTitle is not given.") String content,
             @ToolArg(description = "Edit summary") String summary,
-            @ToolArg(description = "Title of an existing page to use as preload template. Its wikitext becomes the base content. Omit if providing content directly.") String templateTitle) {
+            @ToolArg(description = "Title of an existing page to use as preload template. Its wikitext becomes the base content. Use prefixSearch with 'Template:' to discover available templates. Omit if providing content directly.") String templateTitle) {
         String pageContent;
         if (templateTitle != null && !templateTitle.isBlank()) {
             String templateContent = fetchPageContent(templateTitle);
