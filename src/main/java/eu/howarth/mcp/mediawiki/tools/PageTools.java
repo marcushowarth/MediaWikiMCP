@@ -67,21 +67,57 @@ public class PageTools {
         return page.at("/revisions/0/slots/main/*").asText();
     }
 
-    @Tool(description = "Create or overwrite a MediaWiki page with the given wikitext content")
+    @Tool(description = "Create or overwrite a MediaWiki page. Provide content directly, or use templateTitle to preload an existing page as the base. If both are given, template content is prepended before content.")
     public String createPage(
             @ToolArg(description = "Page title") String title,
-            @ToolArg(description = "Full wikitext content for the page") String content,
-            @ToolArg(description = "Edit summary") String summary) {
+            @ToolArg(description = "Wikitext content for the page. Required if templateTitle is not given.") String content,
+            @ToolArg(description = "Edit summary") String summary,
+            @ToolArg(description = "Title of an existing page to use as preload template. Its wikitext becomes the base content. Omit if providing content directly.") String templateTitle) {
+        String pageContent;
+        if (templateTitle != null && !templateTitle.isBlank()) {
+            String templateContent = fetchPageContent(templateTitle);
+            if (templateContent.startsWith("Error:") || templateContent.startsWith("Page not found:")) {
+                return "Cannot load template '" + templateTitle + "': " + templateContent;
+            }
+            pageContent = (content != null && !content.isBlank()) ? templateContent + "\n" + content : templateContent;
+        } else if (content != null && !content.isBlank()) {
+            pageContent = content;
+        } else {
+            return "Error: provide either content or templateTitle";
+        }
         JsonNode resp = wiki.edit(Map.of(
                 "action", "edit",
                 "title", title,
-                "text", content,
+                "text", pageContent,
                 "summary", summary
         ));
         if (resp.has("error")) {
             return "Error: " + resp.at("/error/info").asText();
         }
         return "Created: " + title + " (revid " + resp.at("/edit/newrevid").asText() + ")";
+    }
+
+    private String fetchPageContent(String title) {
+        JsonNode resp = wiki.get(Map.of(
+                "action", "query",
+                "prop", "revisions",
+                "rvprop", "content",
+                "rvslots", "main",
+                "titles", title,
+                "format", "json"
+        ));
+        if (resp.has("error")) {
+            return "Error: " + resp.at("/error/info").asText();
+        }
+        JsonNode pages = resp.at("/query/pages");
+        if (!pages.elements().hasNext()) {
+            return "Page not found: " + title;
+        }
+        JsonNode page = pages.elements().next();
+        if (page.has("missing")) {
+            return "Page not found: " + title;
+        }
+        return page.at("/revisions/0/slots/main/*").asText();
     }
 
     @Tool(description = "Append text to the end of an existing MediaWiki page")
