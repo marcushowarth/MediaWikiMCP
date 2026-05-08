@@ -4,21 +4,24 @@ A Quarkus MCP (Model Context Protocol) server that connects Claude to a [MediaWi
 
 ## Stack
 
-- **Java 21**, Quarkus 3.x, [quarkus-mcp-server](https://github.com/quarkiverse/quarkus-mcp-server) 1.2.0
+- **Java 21**, Quarkus 3.33.1, [quarkus-mcp-server](https://github.com/quarkiverse/quarkus-mcp-server) 1.12.0
 - **MCP transport:** Streamable HTTP (MCP protocol 2025-11-25)
 - **MCP endpoint:** `/mediawiki/mcp`
 - **Health endpoint:** `/mediawiki/health`
 - **Auth:** MediaWiki bot password (`Special:BotPasswords`)
 
-## Tools (12)
+## Tools (15)
 
 | Class | Tool | What it does |
 |-------|------|--------------|
 | PageTools | `getPage` | Get wikitext content of a page |
 | PageTools | `getSections` | List all sections with index, level and title |
-| PageTools | `createPage` | Create or overwrite a page |
+| PageTools | `getSection` | Get wikitext of a single section by index |
+| PageTools | `createPage` | Create or overwrite a page (optional `templateTitle` preloads an existing page as base) |
 | PageTools | `appendToPage` | Append wikitext to an existing page |
+| PageTools | `appendToSection` | Append to a section without overwriting (safe for journal-style edits) |
 | PageTools | `editSection` | Edit a single section by index |
+| PageTools | `getPageHistory` | Revision history with revids, timestamps, editors and summaries |
 | SearchTools | `search` | Keyword search with optional namespace filter |
 | SearchTools | `prefixSearch` | List pages by title prefix (e.g. `Journal:2026-04`) |
 | SearchTools | `getBacklinks` | Find pages that link to a given page |
@@ -136,5 +139,6 @@ push to main
 
 - Lazy login — `ensureLoggedIn()` called before each request; no startup crash if wiki is unreachable
 - CSRF token cached for session lifetime, re-fetched on `badtoken` response
+- GET requests retry on `readapidenied`/`permissiondenied` — transparent re-auth on session expiry
 - All tools return plain strings — no model POJOs
 - Wiki must have bot passwords enabled (`$wgEnableBotPasswords = true`, default on MediaWiki 1.27+)
