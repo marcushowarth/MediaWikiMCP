@@ -72,7 +72,16 @@ public class MediaWikiClient implements WikiClient {
 
     public JsonNode get(Map<String, String> params) {
         ensureLoggedIn();
-        return rawGet(params);
+        JsonNode resp = rawGet(params);
+        if (resp.has("error")) {
+            String code = resp.at("/error/code").asText();
+            if ("readapidenied".equals(code) || "permissiondenied".equals(code)) {
+                loggedIn = false;
+                ensureLoggedIn();
+                resp = rawGet(params);
+            }
+        }
+        return resp;
     }
 
     public JsonNode edit(Map<String, String> params) {
