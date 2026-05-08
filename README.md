@@ -135,6 +135,63 @@ push to main
 - **IAM user for CI** — ECR push permissions only
 - **Caddy** — reverse proxy on EC2 for HTTPS + automatic Let's Encrypt cert
 
+## Auth model
+
+Two auth layers: a static bearer token at Caddy (edge), and a cookie-based bot session to MediaWiki.
+
+```mermaid
+sequenceDiagram
+    participant CC as Claude Code
+    participant C as Caddy
+    participant MCP as MediaWikiMCP<br/>(Quarkus)
+    participant MW as MediaWiki API
+
+    Note over CC,C: Static bearer token — no session, no expiry
+    Note over C,MCP: No prefix stripping in Caddy<br/>App owns /mediawiki via quarkus.http.root-path
+
+    CC->>+C: Tool call /mediawiki/mcp<br/>Authorization: Bearer <token>
+    C->>+MCP: Forward → /mediawiki/mcp<br/>(no uri strip_prefix)
+    MCP->>MCP: ensureLoggedIn()
+
+    alt loggedIn == false
+        MCP->>+MW: GET action=query&meta=tokens&type=login
+        MW-->>-MCP: logintoken
+        MCP->>+MW: POST action=login (botUser, botPassword, logintoken)
+        MW-->>-MCP: result=Success + session cookie
+        MCP->>+MW: GET action=query&meta=tokens&type=csrf
+        MW-->>-MCP: csrfToken
+        Note over MCP: loggedIn = true
+    end
+
+    alt Read tool (get, search, etc.)
+        MCP->>+MW: GET action=... (cookie sent automatically)
+        MW-->>-MCP: Response
+        alt readapidenied or permissiondenied
+            Note over MCP: Session expired — reset loggedIn = false
+            MCP->>MCP: ensureLoggedIn() → re-login
+            MCP->>+MW: GET action=... (retry with new session)
+            MW-->>-MCP: Response
+        end
+    else Write tool (createPage, editSection, etc.)
+        MCP->>+MW: POST action=edit (cookie + csrfToken)
+        MW-->>-MCP: Response
+        alt badtoken or notoken
+            Note over MCP: CSRF stale — reset loggedIn = false
+            MCP->>MCP: ensureLoggedIn() → re-login
+            MCP->>+MW: POST action=edit (retry with new csrfToken)
+            MW-->>-MCP: Response
+        end
+    end
+
+    MCP-->>-C: Result
+    C-->>-CC: Result
+```
+
+- **Caddy layer:** static bearer token, validated on every request — no sessions, no timeouts
+- **MediaWiki layer:** cookie-based bot session — can expire, requires re-authentication
+- Session cookies managed by `CookieManager` in `HttpClient`, sent automatically
+- `loggedIn` flag prevents unnecessary re-logins; reset on any auth failure
+
 ## Design notes
 
 - Lazy login — `ensureLoggedIn()` called before each request; no startup crash if wiki is unreachable
