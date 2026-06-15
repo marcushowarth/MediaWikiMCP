@@ -4,10 +4,11 @@ A Quarkus MCP (Model Context Protocol) server that connects Claude to a [MediaWi
 
 ## Stack
 
-- **Java 21**, Quarkus 3.33.1, [quarkus-mcp-server](https://github.com/quarkiverse/quarkus-mcp-server) 1.12.0
+- **Java 25**, Quarkus 3.33.1, [quarkus-mcp-server](https://github.com/quarkiverse/quarkus-mcp-server) 1.12.0
+- **Deploy artifact:** GraalVM/Mandrel **native image** (~20 MB resident), fronted by Caddy
 - **MCP transport:** Streamable HTTP (MCP protocol 2025-11-25)
 - **MCP endpoint:** `/mediawiki/mcp`
-- **Health endpoint:** `/mediawiki/health`
+- **Health endpoint:** `/mediawiki/health` publicly (via Caddy); the app itself serves health at `/health` on 8081 (the `smallrye-health` root-path is absolute, independent of the `/mediawiki` http root-path)
 - **Auth:** MediaWiki bot password (`Special:BotPasswords`)
 
 ## Tools (15)
@@ -89,15 +90,20 @@ export MEDIAWIKI_BOT_PASSWORD=your_bot_password
 ./mvnw quarkus:dev
 ```
 
-Server starts on port 8081. Test it:
+Server starts on port 8081. Test it (the app serves health at `/health`):
 ```bash
-curl http://localhost:8081/mediawiki/health
+curl http://localhost:8081/health
 ```
 
-## Run with Docker
+## Build and run native
 
 ```bash
-docker build -t mediawiki-mcp .
+# Build the native image (Linux binary via the Mandrel builder container — needs Docker)
+./mvnw package -Dnative -Dquarkus.native.container-build=true \
+  -Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25
+
+# Wrap the runner in the runtime image and run it
+docker build -f src/main/docker/Dockerfile.native -t mediawiki-mcp .
 docker run -p 8081:8081 \
   -e MEDIAWIKI_URL=https://wiki.example.com/api.php \
   -e MEDIAWIKI_BOT_USER=YourUser@BotName \
@@ -105,16 +111,21 @@ docker run -p 8081:8081 \
   mediawiki-mcp
 ```
 
+A JVM build (`./mvnw package` then `java -jar target/quarkus-app/quarkus-run.jar`) is the fallback if a native build is ever unavailable.
+
 ## Deploy to AWS (CI/CD)
 
 This repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that runs on every push to `main`:
 
 ```
 push to main
-  → build Docker image
+  → build native image + run native integration test (verify -Dnative)
+  → build runtime Docker image (Dockerfile.native)
   → push to ECR
-  → SSH deploy to EC2
+  → SSH deploy to EC2 (docker run + image prune)
 ```
+
+A separate `ci.yml` runs `verify` (tests only, no deploy) on every branch and pull request.
 
 ### Required GitHub Secrets
 

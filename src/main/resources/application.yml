@@ -5,6 +5,8 @@ quarkus:
     port: 8081
     test-port: 0
     root-path: /mediawiki
+    cors:
+      enabled: true   # required by the streamable-HTTP MCP transport (quarkus-mcp-server-http)
   smallrye-health:
     root-path: /health
 
