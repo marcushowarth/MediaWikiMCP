@@ -3,6 +3,9 @@ name: Build and Deploy
 on:
   push:
     branches: [ main ]
+    paths-ignore:        # don't redeploy the app for doc/workflow-only changes
+      - '**.md'
+      - '.github/**'
 
 env:
   AWS_REGION: eu-west-2

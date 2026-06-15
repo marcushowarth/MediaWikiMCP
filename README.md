@@ -125,7 +125,7 @@ push to main
   → SSH deploy to EC2 (docker run + image prune)
 ```
 
-A separate `ci.yml` runs `verify` (tests only, no deploy) on every branch and pull request.
+A separate `ci.yml` runs `verify` (tests only, no deploy) on every branch and pull request. Doc- and workflow-only changes don't trigger a deploy (`paths-ignore`).
 
 ### Required GitHub Secrets
 
