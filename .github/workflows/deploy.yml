@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths-ignore:        # don't redeploy the app for doc/workflow-only changes
       - '**.md'
+      - 'LICENSE'
       - '.github/**'
 
 env:
