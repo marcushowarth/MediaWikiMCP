@@ -222,7 +222,7 @@ public class PageTools {
         return String.join("\n", lines);
     }
 
-    @Tool(description = "Overwrite a section of a MediaWiki page by section number (0 = lead section). WARNING: this replaces the entire section content. Always read the section first with getPage or getSections before calling this.")
+    @Tool(description = "Overwrite a section of a MediaWiki page by section number (0 = lead section). A section includes any indented child sections. WARNING: this replaces the entire section content. Always read the section first with getPage or getSections before calling this.")
     public String editSection(
             @ToolArg(description = "Page title") String title,
             @ToolArg(description = "Section number (0 for lead section)") String section,
