@@ -7,6 +7,9 @@ on:
       - '**.md'
       - 'LICENSE'
       - '.github/**'
+  workflow_dispatch:     # manual trigger — needed since .github/** is push-ignored above,
+                          # so changes to this very file (e.g. testing a caching tweak)
+                          # can't self-trigger a run any other way
 
 env:
   AWS_REGION: eu-west-2
@@ -29,6 +32,29 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
           cache: maven
+
+      - name: Resolve Mandrel builder image digest
+        id: mandrel
+        run: |
+          DIGEST=$(docker manifest inspect quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25 | sha256sum | cut -d' ' -f1)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Mandrel builder image
+        id: cache-mandrel
+        uses: actions/cache@v6
+        with:
+          path: /tmp/mandrel-image.tar
+          key: mandrel-builder-jdk25-${{ steps.mandrel.outputs.digest }}
+
+      - name: Load cached Mandrel builder image
+        if: steps.cache-mandrel.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/mandrel-image.tar
+
+      - name: Pull and cache Mandrel builder image
+        if: steps.cache-mandrel.outputs.cache-hit != 'true'
+        run: |
+          docker pull quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25
+          docker save quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25 -o /tmp/mandrel-image.tar
 
       - name: Build native image + run native integration test
         run: >
