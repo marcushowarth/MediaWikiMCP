@@ -3,18 +3,18 @@ name: Build and Deploy
 on:
   push:
     branches: [ main ]
-    paths-ignore:        # don't redeploy the app for doc/workflow-only changes
+    paths-ignore:
       - '**.md'
       - 'LICENSE'
       - '.github/**'
-  workflow_dispatch:     # manual trigger — needed since .github/** is push-ignored above,
-                          # so changes to this very file (e.g. testing a caching tweak)
-                          # can't self-trigger a run any other way
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 env:
-  AWS_REGION: eu-west-2
-  ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
-  ECR_REPOSITORY: mediawiki-mcp
+  IMAGE: ghcr.io/marcushowarth/mediawiki-mcp
   IMAGE_TAG: ${{ github.sha }}
   HOST_PORT: "8081"          # Caddy proxies mcp.howarth.eu/mediawiki/* -> 127.0.0.1:8081
 
@@ -62,32 +62,29 @@ jobs:
           -Dquarkus.native.container-build=true
           -Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-25
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
         run: |
           docker build -f src/main/docker/Dockerfile.native \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            -t $IMAGE:$IMAGE_TAG .
+          docker tag $IMAGE:$IMAGE_TAG $IMAGE:latest
+          docker push $IMAGE:$IMAGE_TAG
+          docker push $IMAGE:latest
 
-      - name: Deploy to EC2
+      - name: Deploy to Hetzner
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/deploy_key
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no \
-            ec2-user@${{ secrets.EC2_HOST }} \
-            "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
-            docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            deploy@${{ secrets.HETZNER_HOST }} \
+            "echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.IMAGE }}:latest
             docker stop mediawiki-mcp || true
             docker rm mediawiki-mcp || true
             docker run -d \
@@ -96,6 +93,24 @@ jobs:
               -p 127.0.0.1:${{ env.HOST_PORT }}:8081 \
               -e MEDIAWIKI_BOT_USER='${{ secrets.MEDIAWIKI_BOT_USER }}' \
               -e MEDIAWIKI_BOT_PASSWORD='${{ secrets.MEDIAWIKI_BOT_PASSWORD }}' \
-              ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+              ${{ env.IMAGE }}:latest
             docker image prune -f"
           rm -f /tmp/deploy_key
+
+      - name: Health-check the freshly deployed container
+        run: |
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          for i in $(seq 1 12); do
+            if ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no deploy@${{ secrets.HETZNER_HOST }} \
+                "curl -sf -m 5 http://localhost:${{ env.HOST_PORT }}/health"; then
+              echo "Healthy after $i attempt(s)."
+              rm -f /tmp/deploy_key
+              exit 0
+            fi
+            echo "Not up yet (attempt $i), retrying..."
+            sleep 5
+          done
+          echo "Container never became healthy"
+          rm -f /tmp/deploy_key
+          exit 1
