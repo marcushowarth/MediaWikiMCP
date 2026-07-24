@@ -113,7 +113,7 @@ docker run -p 8081:8081 \
 
 A JVM build (`./mvnw package` then `java -jar target/quarkus-app/quarkus-run.jar`) is the fallback if a native build is ever unavailable.
 
-## Deploy to AWS (CI/CD)
+## Deploy (CI/CD)
 
 This repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that runs on every push to `main`:
 
@@ -121,30 +121,31 @@ This repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) th
 push to main
   → build native image + run native integration test (verify -Dnative)
   → build runtime Docker image (Dockerfile.native)
-  → push to ECR
-  → SSH deploy to EC2 (docker run + image prune)
+  → push to GHCR
+  → SSH deploy to host (docker pull + docker run + image prune)
 ```
 
 A separate `ci.yml` runs `verify` (tests only, no deploy) on every branch and pull request. Doc- and workflow-only changes don't trigger a deploy (`paths-ignore`).
+
+**History:** originally deployed to AWS (EC2 + ECR). Migrated to Hetzner Cloud on 2026-07-24 — the first application of a "prove on big cloud, port to cheap dedicated once mature" hosting strategy. Full writeup in the wiki `Projects:MediaWikiMCP` Decision Log.
 
 ### Required GitHub Secrets
 
 | Secret | Description |
 |--------|-------------|
-| `AWS_ACCESS_KEY_ID` | IAM user with ECR push permissions |
-| `AWS_SECRET_ACCESS_KEY` | Corresponding secret key |
-| `EC2_HOST` | Public IP of your EC2 instance |
-| `EC2_SSH_KEY` | Contents of your `.pem` key file |
+| `HETZNER_HOST` | Public IP of your host |
+| `HETZNER_SSH_KEY` | SSH private key for the deploy user |
 | `MEDIAWIKI_BOT_USER` | Passed to the container at runtime |
 | `MEDIAWIKI_BOT_PASSWORD` | Passed to the container at runtime |
 
-### AWS setup summary
+GHCR auth uses the built-in `GITHUB_TOKEN` — no registry credentials to manage.
 
-- **ECR** — container registry in your region
-- **EC2** — t3.micro, Amazon Linux 2023, Docker installed
-- **IAM role on EC2** — `AmazonEC2ContainerRegistryReadOnly`
-- **IAM user for CI** — ECR push permissions only
-- **Caddy** — reverse proxy on EC2 for HTTPS + automatic Let's Encrypt cert
+### Host setup summary
+
+- **GHCR** — `ghcr.io/marcushowarth/mediawiki-mcp`, authenticated via `GITHUB_TOKEN`
+- **Host** — any Docker-capable box reachable over SSH (currently a Hetzner CX23)
+- **Deploy user** — dedicated, own SSH key, docker group (not root)
+- **Caddy** — reverse proxy on the host for HTTPS + automatic Let's Encrypt cert
 
 ## Auth model
 
