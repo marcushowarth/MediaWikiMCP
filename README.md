@@ -81,6 +81,8 @@ Config file locations:
 
 Restart Claude Desktop after editing.
 
+> **Known limitation:** this only works via the local `mcpServers` config above, which is a separate mechanism from Claude's newer [Connectors](https://claude.com/docs/connectors/building) feature (Settings → Connectors) and isn't available in Claude mobile or Cowork. Connectors requires OAuth, which this server doesn't implement yet — Caddy-layer bearer tokens aren't a supported Connectors auth method on an individual plan. Tracked in [#1](https://github.com/marcushowarth/MediaWikiMCP/issues/1).
+
 ## Run locally
 
 ```bash
