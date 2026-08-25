@@ -81,7 +81,39 @@ Config file locations:
 
 Restart Claude Desktop after editing.
 
-> **Known limitation:** this only works via the local `mcpServers` config above, which is a separate mechanism from Claude's newer [Connectors](https://claude.com/docs/connectors/building) feature (Settings → Connectors) and isn't available in Claude mobile or Cowork. Connectors requires OAuth, which this server doesn't implement yet — Caddy-layer bearer tokens aren't a supported Connectors auth method on an individual plan. Tracked in [#1](https://github.com/marcushowarth/MediaWikiMCP/issues/1).
+> This local `mcpServers` config is a separate mechanism from Claude's newer [Connectors](https://claude.com/docs/connectors/building) feature (Settings → Connectors), which is what Claude Desktop/web/mobile/Cowork actually need for a one-click "Add Connector" setup rather than editing a JSON file. See **OAuth (Claude Connectors)** below.
+
+## OAuth (Claude Connectors) — recommended for Desktop/web/mobile
+
+Add via Claude → Settings → Connectors → Add Connector, URL:
+
+```
+https://your-mcp-host/mediawiki/oauth/mcp
+```
+
+Claude drives the whole flow itself — discovery, registration, browser consent, token refresh — nothing to configure beyond entering the URL. This is a *separate, additive* endpoint: the bearer-token `mcpServers` setup above (used by Claude Code) is completely untouched and keeps working exactly as before.
+
+```mermaid
+sequenceDiagram
+    participant D as Claude Desktop/Web
+    participant M as MediaWikiMCP<br/>(/mediawiki/oauth/mcp)
+    participant K as Keycloak<br/>(personal-infra realm)
+
+    D->>M: request, no token
+    M-->>D: 401 WWW-Authenticate: Bearer resource_metadata=...
+    D->>M: GET /.well-known/oauth-protected-resource
+    M-->>D: authorization_servers: [auth.howarth.eu/realms/personal-infra]
+    D->>K: OIDC discovery + Dynamic Client Registration
+    K-->>D: client_id
+    D->>K: authorize (PKCE S256) — browser opens
+    Note over D,K: user logs in + consents
+    K-->>D: auth code → exchanged for access_token (JWT)
+    D->>M: request, Authorization: Bearer <JWT>
+    M->>K: validate JWT (JWKS)
+    M-->>D: 200 tool result
+```
+
+Same recipe as [KanbanMCP](https://github.com/marcushowarth/KanbanMCP)'s OAuth support (#966) — `/mediawiki/oauth/mcp` is a second, OIDC-secured `quarkus-mcp-server` instance exposing the same tools, backed by Keycloak's `personal-infra` realm (the same `marcus` end-user account used for the KanbanMCP Connector).
 
 ## Run locally
 
@@ -149,9 +181,9 @@ GHCR auth uses the built-in `GITHUB_TOKEN` — no registry credentials to manage
 - **Deploy user** — dedicated, own SSH key, docker group (not root)
 - **Caddy** — reverse proxy on the host for HTTPS + automatic Let's Encrypt cert
 
-## Auth model
+## Auth model (bearer token / Claude Code)
 
-Two auth layers: a static bearer token at Caddy (edge), and a cookie-based bot session to MediaWiki.
+See [OAuth (Claude Connectors)](#oauth-claude-connectors--recommended-for-desktopwebmobile) above for the Desktop/web/mobile path — this section covers the original bearer-token path, still used by Claude Code. Two auth layers: a static bearer token at Caddy (edge), and a cookie-based bot session to MediaWiki.
 
 ```mermaid
 sequenceDiagram
