@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import eu.howarth.mcp.mediawiki.client.MediaWikiClient;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
+import io.quarkiverse.mcp.server.McpServer;
+import static io.quarkiverse.mcp.server.McpServer.DEFAULT;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -12,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
+@McpServer(DEFAULT)
+@McpServer("oauth")
 public class CategoryTools {
 
     @Inject
