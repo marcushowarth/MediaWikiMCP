@@ -7,8 +7,44 @@ quarkus:
     root-path: /mediawiki
     cors:
       enabled: true   # required by the streamable-HTTP MCP transport (quarkus-mcp-server-http)
+    auth:
+      # Proactive auth off: without this, Quarkus attempts to validate ANY
+      # presented Authorization: Bearer header against every registered auth
+      # mechanism (including OIDC) on EVERY path, regardless of that path's own
+      # policy. Broke the equivalent bearer-token path in KanbanMCP production
+      # (#966) — real Claude Code traffic with a valid static token got a 401
+      # OIDC challenge instead of reaching the app. With this off, authentication
+      # is only attempted when the resolved policy for the matched path requires it.
+      proactive: false
+      permission:
+        bearer-mcp:
+          paths: /mediawiki/mcp
+          policy: permit
+        oauth-mcp:
+          paths: /mediawiki/oauth/mcp
+          policy: authenticated
+  mcp:
+    server:
+      oauth:
+        http:
+          root-path: /oauth/mcp   # combined with quarkus.http.root-path -> /mediawiki/oauth/mcp
+  oidc:
+    tenant-paths: /mediawiki/oauth/mcp
+    token:
+      audience: mediawiki-mcp
+    resource-metadata:
+      enabled: true   # auto-handles RFC 9728 protected-resource metadata + the 401/WWW-Authenticate challenge
+      resource: ${OIDC_RESOURCE_URL:https://mcp.howarth.eu/mediawiki/oauth/mcp}   # must match the Connector URL exactly, incl. path (Anthropic's requirement) - Quarkus otherwise defaults to the bare origin
+      scopes: openid,offline_access   # explicit scopes_supported in the RFC 9728 doc. Left unset, Claude got an "invalid_scope" error from Keycloak on every real connector attempt (KanbanMCP #966) — Claude requests whatever scopes_supported advertises, and an absent list apparently isn't the same as "request nothing."
   smallrye-health:
     root-path: /health
+
+# auth-server-url deliberately absent above (dev/test): lets Quarkus OIDC Dev Services
+# auto-provision its own ephemeral Keycloak instead. Only %prod gets the real one.
+"%prod":
+  quarkus:
+    oidc:
+      auth-server-url: ${OIDC_AUTH_SERVER_URL:https://auth.howarth.eu/realms/personal-infra}
 
 mediawiki:
   url: ${MEDIAWIKI_URL:https://wiki.howarth.eu/api.php}

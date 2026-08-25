@@ -1,0 +1,4 @@
+quarkus:
+  keycloak:
+    devservices:
+      realm-path: mediawiki-mcp-test-realm.json

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import eu.howarth.mcp.mediawiki.client.WikiClient;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
+import io.quarkiverse.mcp.server.McpServer;
+import static io.quarkiverse.mcp.server.McpServer.DEFAULT;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -13,6 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 
 @ApplicationScoped
+@McpServer(DEFAULT)
+@McpServer("oauth")
 public class SearchTools {
 
     @Inject
