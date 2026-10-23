@@ -31,6 +31,8 @@ public class SearchTools {
                 "action", "query",
                 "list", "search",
                 "srsearch", query,
+                // MediaWiki 1.46's MySQL search backend returns title matches only unless asked for text
+                "srwhat", "text",
                 "srlimit", String.valueOf(limit <= 0 ? 10 : limit),
                 "srprop", "snippet|titlesnippet",
                 "format", "json"
