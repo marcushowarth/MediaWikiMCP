@@ -89,7 +89,7 @@ jobs:
             docker rm mediawiki-mcp || true
             docker run -d \
               --name mediawiki-mcp \
-              --restart unless-stopped \
+              --restart always \
               -p 127.0.0.1:${{ env.HOST_PORT }}:8081 \
               -e MEDIAWIKI_BOT_USER='${{ secrets.MEDIAWIKI_BOT_USER }}' \
               -e MEDIAWIKI_BOT_PASSWORD='${{ secrets.MEDIAWIKI_BOT_PASSWORD }}' \
