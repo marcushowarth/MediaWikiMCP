@@ -77,6 +77,10 @@ jobs:
           docker push $IMAGE:$IMAGE_TAG
           docker push $IMAGE:latest
 
+      - name: Stamp the build time
+        id: built
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Hetzner
         run: |
           echo "${{ secrets.HETZNER_SSH_KEY }}" > /tmp/deploy_key
@@ -93,6 +97,9 @@ jobs:
               -p 127.0.0.1:${{ env.HOST_PORT }}:8081 \
               -e MEDIAWIKI_BOT_USER='${{ secrets.MEDIAWIKI_BOT_USER }}' \
               -e MEDIAWIKI_BOT_PASSWORD='${{ secrets.MEDIAWIKI_BOT_PASSWORD }}' \
+              -e APP_BUILD_NUMBER='${{ github.run_number }}' \
+              -e APP_GIT_SHA='${{ github.sha }}' \
+              -e APP_BUILT_AT='${{ steps.built.outputs.at }}' \
               ${{ env.IMAGE }}:latest
             docker image prune -f"
           rm -f /tmp/deploy_key
