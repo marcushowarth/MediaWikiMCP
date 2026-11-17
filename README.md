@@ -9,6 +9,7 @@ A Quarkus MCP (Model Context Protocol) server that connects Claude to a [MediaWi
 - **MCP transport:** Streamable HTTP (MCP protocol 2025-11-25)
 - **MCP endpoint:** `/mediawiki/mcp`
 - **Health endpoint:** `/mediawiki/health` publicly (via Caddy); the app itself serves health at `/health` on 8081 (the `smallrye-health` root-path is absolute, independent of the `/mediawiki` http root-path)
+- **Version endpoint:** `/mediawiki/version` returns `{version, buildNumber, gitSha, builtAt}` (the pom version, and `APP_BUILD_NUMBER`, `APP_GIT_SHA`, `APP_BUILT_AT` set by the deploy; `dev` / `unknown` locally). No token in the app; Caddy lets this one path past the bearer token, so the ops hub's Running build panel can read it
 - **Auth:** MediaWiki bot password (`Special:BotPasswords`)
 
 ## Tools (15)
