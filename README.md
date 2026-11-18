@@ -157,8 +157,11 @@ push to main
   → build native image + run native integration test (verify -Dnative)
   → build runtime Docker image (Dockerfile.native)
   → push to GHCR
-  → SSH deploy to host (docker pull + docker run + image prune)
+  → SSH deploy to host (set -e; docker pull of the commit-tagged image, docker run, remove older tags)
+  → health check, then /version must report this commit's sha, or the deploy fails
 ```
+
+The host runs the image tagged with the commit sha, not `latest`, so a failed or stale pull stops the deploy before the running container is touched.
 
 A separate `ci.yml` runs `verify` (tests only, no deploy) on every branch and pull request. Doc- and workflow-only changes don't trigger a deploy (`paths-ignore`).
 

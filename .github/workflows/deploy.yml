@@ -87,8 +87,9 @@ jobs:
           chmod 600 /tmp/deploy_key
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no \
             deploy@${{ secrets.HETZNER_HOST }} \
-            "echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ${{ env.IMAGE }}:latest
+            "set -e
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
             docker stop mediawiki-mcp || true
             docker rm mediawiki-mcp || true
             docker run -d \
@@ -100,7 +101,8 @@ jobs:
               -e APP_BUILD_NUMBER='${{ github.run_number }}' \
               -e APP_GIT_SHA='${{ github.sha }}' \
               -e APP_BUILT_AT='${{ steps.built.outputs.at }}' \
-              ${{ env.IMAGE }}:latest
+              ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
+            docker images --format '{{.Repository}}:{{.Tag}}' ${{ env.IMAGE }} | grep -v ':${{ env.IMAGE_TAG }}$' | xargs -r docker rmi || true
             docker image prune -f"
           rm -f /tmp/deploy_key
 
@@ -112,7 +114,12 @@ jobs:
             if ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no deploy@${{ secrets.HETZNER_HOST }} \
                 "curl -sf -m 5 http://localhost:${{ env.HOST_PORT }}/health"; then
               echo "Healthy after $i attempt(s)."
+              # Healthy is not enough: the build answering must be this commit
+              LIVE=$(ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no deploy@${{ secrets.HETZNER_HOST }} \
+                "curl -sf -m 5 http://localhost:${{ env.HOST_PORT }}/mediawiki/version") || LIVE=""
+              echo "Running: $LIVE"
               rm -f /tmp/deploy_key
+              echo "$LIVE" | grep -q "\"gitSha\":\"${{ github.sha }}\"" || { echo "::error::The container is up but is not this commit (${{ github.sha }})"; exit 1; }
               exit 0
             fi
             echo "Not up yet (attempt $i), retrying..."
